@@ -11,25 +11,24 @@ RATE_LIMIT_SECONDS = 5  # защита от спама
 scores = []
 last_submit_time = {}  # ip -> time
 
-
 # ---------- ЗАГРУЗКА ----------
 def load_scores():
     global scores
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            scores = json.load(f)
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                scores = json.load(f)
+        except:
+            scores = []
     else:
         scores = []
-
 
 # ---------- СОХРАНЕНИЕ ----------
 def save_scores():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(scores, f, ensure_ascii=False)
 
-
 load_scores()
-
 
 @app.route("/submit", methods=["POST"])
 def submit():
@@ -58,18 +57,21 @@ def submit():
             "score": score
         })
 
+    # Сортируем всех игроков
     scores.sort(key=lambda x: x["score"], reverse=True)
-    scores[:] = scores[:10]
+    
+    # ИСПРАВЛЕНИЕ: Храним топ-100 вместо топ-10
+    # Это позволит игрокам видеть свое место, даже если они не в лидерах
+    if len(scores) > 100:
+        scores[:] = scores[:100]
 
     save_scores()
-
     return jsonify({"status": "ok"})
-
 
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
+    # Возвращаем весь список (до 100 чел), чтобы клиент мог найти игрока
     return jsonify(scores)
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
